@@ -1,5 +1,5 @@
 ## data
-train_file: data/instruction_tuning/processed/context_aware_instrution_tuning_data.jsonl
+train_file: data/sample_instruction_tuning.jsonl
 max_seq_length: 1024  
 retrieval_context_length: 180
 preprocessing_num_workers: 32
@@ -7,7 +7,7 @@ overwrite_cache: false
 use_rag_tuning: true
 
 ## model
-model_name_or_path: pretrained_model/sfr-mistral-7b
+model_name_or_path: mistralai/Mistral-7B-Instruct-v0.3
 chat_format: mistral
 retriever_name_or_path: Salesforce/SFR-Embedding-Mistral
 
