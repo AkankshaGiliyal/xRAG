@@ -8,7 +8,7 @@ from typing import Optional,Union
 class XMixtralConfig(MixtralConfig):
     def __init__(
         self,
-        projector_type = 'mlp3x_gelu',
+        projector_type = 'mlp2x_gelu',
         retriever_hidden_size = 128,
         **kwargs,
     ):
@@ -16,7 +16,7 @@ class XMixtralConfig(MixtralConfig):
         self.projector_type = projector_type
         self.retriever_hidden_size = retriever_hidden_size
 
-
+'''
 class Projector(nn.Module):
     def __init__(self,config):
         super().__init__()
@@ -32,13 +32,47 @@ class Projector(nn.Module):
     
     def forward(self,context_embedding):
         return self.projector(context_embedding)
+'''
+class CrossAttentionProjector(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.hidden_size = config.hidden_size
+        self.retriever_hidden_size = config.retriever_hidden_size
 
+        # Linear layers to project retrieval embeddings into hidden space
+        self.query_proj = nn.Linear(self.hidden_size, self.hidden_size)
+        self.key_proj = nn.Linear(self.retriever_hidden_size, self.hidden_size)
+        self.value_proj = nn.Linear(self.retriever_hidden_size, self.hidden_size)
+
+        # Multi-Head Cross-Attention
+        self.cross_attention = nn.MultiheadAttention(embed_dim=self.hidden_size, num_heads=4, batch_first=True)
+
+        # Output projection layer
+        self.output_proj = nn.Linear(self.hidden_size, self.hidden_size)
+
+    def forward(self, retrieval_embedding, query_embedding):
+        """
+        retrieval_embedding: Tensor of shape (batch_size, 1, retriever_hidden_size)
+        query_embedding: Tensor of shape (batch_size, seq_len, hidden_size)  # The input query context
+        """
+        # Project to shared space
+        query = self.query_proj(query_embedding)  # Shape: (batch_size, seq_len, hidden_size)
+        key = self.key_proj(retrieval_embedding)  # Shape: (batch_size, 1, hidden_size)
+        value = self.value_proj(retrieval_embedding)  # Shape: (batch_size, 1, hidden_size)
+
+        # Apply cross-attention
+        attended_output, _ = self.cross_attention(query, key, value)
+
+        # Final projection
+        projected_embedding = self.output_proj(attended_output)
+
+        return projected_embedding
 ## compatible with normal Mixtral model
 class XMixtralForCausalLM(MixtralForCausalLM):
     def __init__(self,config):
         super().__init__(config)
         if hasattr(config,"retriever_hidden_size") and config.retriever_hidden_size > 0: 
-            self.projector = Projector(config)
+            self.projector = CrossAttentionProjector(config)
             self.retriever_hidden_size = config.retriever_hidden_size
         self.post_init()
     
