@@ -16,7 +16,6 @@ class XMistralConfig(MistralConfig):
         self.projector_type = projector_type
         self.retriever_hidden_size = retriever_hidden_size
 
-'''
 class Projector(nn.Module):
     def __init__(self,config):
         super().__init__()
@@ -32,43 +31,8 @@ class Projector(nn.Module):
     
     def forward(self,context_embedding):
         return self.projector(context_embedding)
-'''
-class CrossAttentionProjector(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.hidden_size = config.hidden_size
-        self.retriever_hidden_size = config.retriever_hidden_size
 
-        # Projection layers
-        self.query_proj = nn.Linear(self.hidden_size, self.hidden_size)
-        self.key_proj = nn.Linear(self.retriever_hidden_size, self.hidden_size)
-        self.value_proj = nn.Linear(self.retriever_hidden_size, self.hidden_size)
 
-        # Cross-attention
-        self.cross_attention = nn.MultiheadAttention(embed_dim=self.hidden_size, num_heads=4, batch_first=True)
-
-        # Output projection
-        self.output_proj = nn.Linear(self.hidden_size, self.hidden_size)
-
-    def forward(self, retrieval_embedding, query_embedding):
-        """
-        retrieval_embedding: Tensor of shape (batch_size, 1, retriever_hidden_size)
-        query_embedding: Tensor of shape (batch_size, seq_len, hidden_size)  # Query token embeddings
-        """
-        query = self.query_proj(query_embedding)  # Shape: (batch_size, seq_len, hidden_size)
-        key = self.key_proj(retrieval_embedding)  # Shape: (batch_size, 1, hidden_size)
-        value = self.value_proj(retrieval_embedding)  # Shape: (batch_size, 1, hidden_size)
-
-        # Cross-attention
-        attended_output, _ = self.cross_attention(query, key, value)  # (batch_size, seq_len, hidden_size)
-
-        # Reduce to a single vector (like MLP projector)
-        attended_output = attended_output.mean(dim=1)  # Average over sequence to get (batch_size, hidden_size)
-
-        # Final projection
-        projected_embedding = self.output_proj(attended_output)  # Shape: (batch_size, hidden_size)
-
-        return projected_embedding
 
 
 ## compatible with normal Mistral model
